@@ -1,6 +1,7 @@
 package org.drag.me
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +18,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
@@ -24,7 +28,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import kotlin.math.roundToInt
+import kotlin.math.*
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 data class BuildingBlock(
@@ -36,7 +40,15 @@ data class BuildingBlock(
 data class DroppedBlock(
     val block: BuildingBlock,
     val position: Offset,
-    val id: String = "${block.id}_${kotlin.random.Random.nextLong()}" // KMP-compatible unique ID
+    val id: String = "${block.id}_${kotlin.random.Random.nextLong()}",
+    val order: Int // Track the order of placement for connections
+)
+
+data class Connection(
+    val fromBlockId: String,
+    val toBlockId: String,
+    val fromPosition: Offset,
+    val toPosition: Offset
 )
 
 data class DragState(
@@ -70,9 +82,32 @@ fun DragAndDropScreen() {
     }
     
     var droppedBlocks by remember { mutableStateOf<List<DroppedBlock>>(emptyList()) }
+    var connections by remember { mutableStateOf<List<Connection>>(emptyList()) }
     var dragState by remember { mutableStateOf(DragState()) }
     var dropZoneSize by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
     var dropZonePosition by remember { mutableStateOf(Offset.Zero) }
+    var nextOrder by remember { mutableStateOf(0) }
+    
+    // Function to calculate block center position
+    val getBlockCenter = { block: DroppedBlock ->
+        Offset(
+            block.position.x + 40f, // Half of block width (80dp)
+            block.position.y + 30f  // Half of block height (60dp)
+        )
+    }
+    
+    // Function to create connection between blocks
+    val createConnection = { fromBlock: DroppedBlock, toBlock: DroppedBlock ->
+        val fromCenter = getBlockCenter(fromBlock)
+        val toCenter = getBlockCenter(toBlock)
+        println("Creating connection from (${fromCenter.x}, ${fromCenter.y}) to (${toCenter.x}, ${toCenter.y})")
+        Connection(
+            fromBlockId = fromBlock.id,
+            toBlockId = toBlock.id,
+            fromPosition = fromCenter,
+            toPosition = toCenter
+        )
+    }
     
     Box(
         modifier = Modifier.fillMaxSize()
@@ -85,7 +120,7 @@ fun DragAndDropScreen() {
         ) {
             // Title
             Text(
-                text = "🎨 Drag & Drop Building Blocks",
+                text = "🎨 Connected Building Blocks",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF2C3E50),
@@ -134,10 +169,29 @@ fun DragAndDropScreen() {
                                             val clampedX = dropZoneRelativeX.coerceIn(0f, dropZoneSize.width - 80f)
                                             val clampedY = dropZoneRelativeY.coerceIn(0f, dropZoneSize.height - 60f)
                                             
-                                            droppedBlocks = droppedBlocks + DroppedBlock(
+                                            val newBlock = DroppedBlock(
                                                 block = dragged,
-                                                position = Offset(clampedX, clampedY)
+                                                position = Offset(clampedX, clampedY),
+                                                order = nextOrder
                                             )
+                                            
+                                            // Add the new block
+                                            droppedBlocks = droppedBlocks + newBlock
+                                            
+                                            // Create connection to the most recently dropped block (if any)
+                                            if (droppedBlocks.size >= 1) { // Changed from > 1 to >= 1
+                                                val previousBlock = droppedBlocks
+                                                    .filter { it.id != newBlock.id }
+                                                    .maxByOrNull { it.order }
+                                                previousBlock?.let { prevBlock ->
+                                                    println("Connecting ${prevBlock.block.name} to ${newBlock.block.name}")
+                                                    val newConnection = createConnection(prevBlock, newBlock)
+                                                    connections = connections + newConnection
+                                                    println("Total connections: ${connections.size}")
+                                                }
+                                            }
+                                            
+                                            nextOrder++
                                         }
                                     }
                                     dragState = DragState()
@@ -176,6 +230,33 @@ fun DragAndDropScreen() {
                         .fillMaxSize()
                         .padding(16.dp)
                 ) {
+                    // Draw connections (above everything else)
+                    Canvas(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        // Draw a test line to verify Canvas is working
+                        if (connections.isEmpty() && droppedBlocks.isNotEmpty()) {
+                            drawLine(
+                                color = Color.Red,
+                                start = Offset(50f, 50f),
+                                end = Offset(150f, 150f),
+                                strokeWidth = 3.dp.toPx()
+                            )
+                        }
+                        
+                        // Draw actual connections
+                        println("Drawing ${connections.size} connections")
+                        connections.forEach { connection ->
+                            println("Drawing arrow from (${connection.fromPosition.x}, ${connection.fromPosition.y}) to (${connection.toPosition.x}, ${connection.toPosition.y})")
+                            drawArrowLine(
+                                start = connection.fromPosition,
+                                end = connection.toPosition,
+                                color = Color(0xFF3498DB),
+                                strokeWidth = 4.dp.toPx()
+                            )
+                        }
+                    }
+                    
                     // Drop zone instructions
                     if (droppedBlocks.isEmpty()) {
                         Column(
@@ -183,17 +264,17 @@ fun DragAndDropScreen() {
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "🎯",
+                                text = "🔗",
                                 fontSize = 48.sp
                             )
                             Text(
-                                text = "Drop Zone",
+                                text = "Connected Drop Zone",
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color(0xFF7F8C8D)
                             )
                             Text(
-                                text = "Drag blocks here to build!",
+                                text = "Blocks will connect in order!",
                                 fontSize = 14.sp,
                                 color = Color(0xFFBDC3C7)
                             )
@@ -204,8 +285,56 @@ fun DragAndDropScreen() {
                     droppedBlocks.forEach { droppedBlock ->
                         DroppedBlockItem(
                             droppedBlock = droppedBlock,
+                            isDraggedGlobally = dragState.draggedBlock?.id == droppedBlock.block.id,
+                            dropZoneSize = dropZoneSize,
                             onRemove = {
-                                droppedBlocks = droppedBlocks.filter { it.id != droppedBlock.id }
+                                // Remove the block and its connections
+                                val blockId = droppedBlock.id
+                                droppedBlocks = droppedBlocks.filter { it.id != blockId }
+                                connections = connections.filter { 
+                                    it.fromBlockId != blockId && it.toBlockId != blockId 
+                                }
+                            },
+                            onPositionUpdate = { newPosition ->
+                                // Update block position
+                                droppedBlocks = droppedBlocks.map { block ->
+                                    if (block.id == droppedBlock.id) {
+                                        block.copy(position = newPosition)
+                                    } else {
+                                        block
+                                    }
+                                }
+                                
+                                // Update connections involving this block
+                                val updatedBlockCenter = Offset(
+                                    newPosition.x + 40f,
+                                    newPosition.y + 30f
+                                )
+                                
+                                connections = connections.map { connection ->
+                                    when {
+                                        connection.fromBlockId == droppedBlock.id -> {
+                                            connection.copy(fromPosition = updatedBlockCenter)
+                                        }
+                                        connection.toBlockId == droppedBlock.id -> {
+                                            connection.copy(toPosition = updatedBlockCenter)
+                                        }
+                                        else -> connection
+                                    }
+                                }
+                            },
+                            onDragStart = { initialPos ->
+                                dragState = DragState(
+                                    isDragging = true,
+                                    draggedBlock = droppedBlock.block,
+                                    initialPosition = initialPos
+                                )
+                            },
+                            onDragEnd = {
+                                dragState = DragState()
+                            },
+                            onDrag = { offset ->
+                                dragState = dragState.copy(dragOffset = offset)
                             }
                         )
                     }
@@ -218,13 +347,21 @@ fun DragAndDropScreen() {
                                 .padding(8.dp),
                             colors = CardDefaults.cardColors(containerColor = Color(0xFFECF0F1))
                         ) {
-                            Text(
-                                text = "Blocks: ${droppedBlocks.size}",
-                                modifier = Modifier.padding(8.dp),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF2C3E50)
-                            )
+                            Column(
+                                modifier = Modifier.padding(8.dp)
+                            ) {
+                                Text(
+                                    text = "Blocks: ${droppedBlocks.size}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF2C3E50)
+                                )
+                                Text(
+                                    text = "Connections: ${connections.size}",
+                                    fontSize = 10.sp,
+                                    color = Color(0xFF3498DB)
+                                )
+                            }
                         }
                     }
                 }
@@ -234,7 +371,11 @@ fun DragAndDropScreen() {
             if (droppedBlocks.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(
-                    onClick = { droppedBlocks = emptyList() },
+                    onClick = { 
+                        droppedBlocks = emptyList()
+                        connections = emptyList()
+                        nextOrder = 0
+                    },
                     modifier = Modifier.align(Alignment.CenterHorizontally),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE74C3C))
                 ) {
@@ -253,6 +394,53 @@ fun DragAndDropScreen() {
     }
 }
 
+// Extension function to draw arrow lines
+fun DrawScope.drawArrowLine(
+    start: Offset,
+    end: Offset,
+    color: Color,
+    strokeWidth: Float
+) {
+    // Draw the main line
+    drawLine(
+        color = color,
+        start = start,
+        end = end,
+        strokeWidth = strokeWidth
+    )
+    
+    // Calculate arrow head
+    val arrowLength = 15f
+    val arrowAngle = PI / 4 // 45 degrees for more visible arrow
+    
+    val lineAngle = atan2(end.y - start.y, end.x - start.x)
+    
+    val arrowEnd1 = Offset(
+        end.x - arrowLength * cos(lineAngle - arrowAngle).toFloat(),
+        end.y - arrowLength * sin(lineAngle - arrowAngle).toFloat()
+    )
+    
+    val arrowEnd2 = Offset(
+        end.x - arrowLength * cos(lineAngle + arrowAngle).toFloat(),
+        end.y - arrowLength * sin(lineAngle + arrowAngle).toFloat()
+    )
+    
+    // Draw arrow head lines
+    drawLine(
+        color = color,
+        start = end,
+        end = arrowEnd1,
+        strokeWidth = strokeWidth
+    )
+    
+    drawLine(
+        color = color,
+        start = end,
+        end = arrowEnd2,
+        strokeWidth = strokeWidth
+    )
+}
+
 @Composable
 fun DraggableBlock(
     block: BuildingBlock,
@@ -265,7 +453,7 @@ fun DraggableBlock(
     var blockPosition by remember { mutableStateOf(Offset.Zero) }
     
     val alpha by animateFloatAsState(
-        targetValue = if (isDraggedGlobally) 0.3f else 1f, // Make original semi-transparent when dragging
+        targetValue = if (isDraggedGlobally) 0.3f else 1f,
         label = "alpha"
     )
     
@@ -325,11 +513,11 @@ fun DragOverlay(
         modifier = Modifier
             .offset {
                 IntOffset(
-                    (offset.x - 40.dp.value).roundToInt(), // Center the block on cursor
+                    (offset.x - 40.dp.value).roundToInt(),
                     (offset.y - 30.dp.value).roundToInt()
                 )
             }
-            .zIndex(1000f) // Ensure it's above everything
+            .zIndex(1000f)
             .shadow(12.dp, RoundedCornerShape(12.dp))
             .background(
                 color = block.color,
@@ -355,8 +543,23 @@ fun DragOverlay(
 @Composable
 fun DroppedBlockItem(
     droppedBlock: DroppedBlock,
-    onRemove: () -> Unit
+    isDraggedGlobally: Boolean,
+    dropZoneSize: androidx.compose.ui.geometry.Size,
+    onRemove: () -> Unit,
+    onPositionUpdate: (Offset) -> Unit,
+    onDragStart: (Offset) -> Unit,
+    onDragEnd: () -> Unit,
+    onDrag: (Offset) -> Unit
 ) {
+    var localDragOffset by remember { mutableStateOf(Offset.Zero) }
+    var blockPosition by remember { mutableStateOf(Offset.Zero) }
+    var isDragging by remember { mutableStateOf(false) }
+    
+    val alpha by animateFloatAsState(
+        targetValue = if (isDraggedGlobally) 0.3f else 1f,
+        label = "alpha"
+    )
+    
     Box(
         modifier = Modifier
             .offset {
@@ -365,18 +568,61 @@ fun DroppedBlockItem(
                     droppedBlock.position.y.roundToInt()
                 )
             }
-            .shadow(4.dp, RoundedCornerShape(12.dp))
+            .onGloballyPositioned { coordinates ->
+                blockPosition = coordinates.localToWindow(Offset.Zero)
+            }
+            .alpha(alpha)
+            .shadow(
+                elevation = if (isDragging) 8.dp else 4.dp,
+                shape = RoundedCornerShape(12.dp)
+            )
             .background(
                 color = droppedBlock.block.color,
                 shape = RoundedCornerShape(12.dp)
             )
             .border(
-                width = 1.dp,
-                color = Color(0xFFBDC3C7),
+                width = if (isDragging) 2.dp else 1.dp,
+                color = if (isDragging) Color.White else Color(0xFFBDC3C7),
                 shape = RoundedCornerShape(12.dp)
             )
             .size(80.dp, 60.dp)
-            .clickable { onRemove() },
+            .pointerInput(droppedBlock.id) {
+                detectDragGestures(
+                    onDragStart = { offset ->
+                        isDragging = true
+                        localDragOffset = Offset.Zero
+                        onDragStart(blockPosition + offset)
+                    },
+                    onDragEnd = {
+                        isDragging = false
+                        
+                        // Calculate final position and clamp within bounds
+                        val finalPosition = droppedBlock.position + localDragOffset
+                        val clampedX = finalPosition.x.coerceIn(0f, dropZoneSize.width - 80f)
+                        val clampedY = finalPosition.y.coerceIn(0f, dropZoneSize.height - 60f)
+                        val clampedPosition = Offset(clampedX, clampedY)
+                        
+                        onPositionUpdate(clampedPosition)
+                        onDragEnd()
+                        localDragOffset = Offset.Zero
+                    },
+                    onDrag = { _, dragAmount ->
+                        localDragOffset += dragAmount
+                        onDrag(localDragOffset)
+                        
+                        // Update connections in real-time during drag
+                        val currentPosition = droppedBlock.position + localDragOffset
+                        val clampedX = currentPosition.x.coerceIn(0f, dropZoneSize.width - 80f)
+                        val clampedY = currentPosition.y.coerceIn(0f, dropZoneSize.height - 60f)
+                        val tempPosition = Offset(clampedX, clampedY)
+                        
+                        onPositionUpdate(tempPosition)
+                    }
+                )
+            }
+            .clickable { 
+                if (!isDragging) onRemove() // Only allow removal when not dragging
+            },
         contentAlignment = Alignment.Center
     ) {
         Text(
