@@ -2,9 +2,7 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "chmod +x railway-start.sh && ./railway-start.sh"
-healthcheckPath = "/health"
-
-[environments.production.variables]
-PORT = "8080"
-JAVA_OPTS = "-Xmx512m"
+startCommand = "./gradlew :server:run --no-daemon"
+# Temporarily disable healthcheck
+# healthcheckPath = "/health"
+restartPolicyType = "on_failure"

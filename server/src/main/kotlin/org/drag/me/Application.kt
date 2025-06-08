@@ -14,7 +14,9 @@ import org.drag.me.routes.buildingBlockRoutes
 
 fun main() {
     val port = System.getenv("PORT")?.toInt() ?: SERVER_PORT
-    val host = System.getenv("HOST") ?: "0.0.0.0"
+    val host = "0.0.0.0" // Important: bind to all interfaces, not localhost
+    
+    println("Starting server on $host:$port")
     
     embeddedServer(Netty, port = port, host = host, module = Application::module)
         .start(wait = true)
@@ -49,16 +51,22 @@ fun Application.module() {
             allowHost("localhost:3000") // For local development alternatives
         }
         
-        // Health check endpoint
+        // Health check endpoint - make it first priority
+        get("/health") {
+            call.respond(HttpStatusCode.OK, "OK")
+        }
+        
+        // Root endpoint
         get("/") {
             call.respondText("DragMe API Server: ${Greeting().greet()}")
         }
         
-        get("/health") {
-            call.respondText("OK", ContentType.Text.Plain)
-        }
-        
         // API routes
         buildingBlockRoutes()
+    }
+    
+    // Log when server is ready
+    environment.monitor.subscribe(ApplicationStarted) {
+        println("✅ DragMe Server is ready and healthy!")
     }
 }
