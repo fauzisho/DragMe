@@ -1,57 +1,68 @@
 package org.drag.me
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import kotlin.math.*
+import org.jetbrains.compose.ui.tooling.preview.Preview
+import org.drag.me.model.*
 import org.drag.me.extension.drawArrowLine
-import org.drag.me.model.BuildingBlock
-import org.drag.me.model.Connection
-import org.drag.me.model.DroppedBlock
-import org.drag.me.model.ZoomState
 import org.drag.me.ui.DragOverlay
 import org.drag.me.ui.DraggableBlock
 import org.drag.me.ui.DroppedBlockItem
-import org.jetbrains.compose.ui.tooling.preview.Preview
-import kotlin.math.*
+import org.drag.me.presentation.viewmodel.ViewModelFactory
+import org.drag.me.presentation.components.AddBlockDialog
 
 @Composable
 @Preview
 fun App() {
     MaterialTheme {
-        DragAndDropScreen()
+        DragAndDropScreenWithViewModel()
     }
 }
 
 @Composable
-fun DragAndDropScreen() {
-    val buildingBlocks = remember {
-        listOf(
-            BuildingBlock("red", Color.Red, "Red Block"),
-            BuildingBlock("blue", Color.Blue, "Blue Block"),
-            BuildingBlock("green", Color.Green, "Green Block"),
-            BuildingBlock("yellow", Color.Yellow, "Yellow Block"),
-            BuildingBlock("purple", Color.Magenta, "Purple Block"),
-            BuildingBlock("orange", Color.hsl(30f, 1f, 0.5f), "Orange Block"),
-            BuildingBlock("cyan", Color.Cyan, "Cyan Block"),
-            BuildingBlock("pink", Color.hsl(330f, 0.7f, 0.8f), "Pink Block")
-        )
-    }
+expect fun AppWithViewModel()
 
+@Composable
+fun AppContent(viewModelFactory: ViewModelFactory) {
+    MaterialTheme {
+        DragAndDropScreenWithViewModel()
+    }
+}
+
+@Composable
+fun DragAndDropScreenWithViewModel() {
+    // Use ViewModel for managing building blocks
+    val viewModelFactory = ViewModelFactory()
+    val viewModel = remember { viewModelFactory.create(org.drag.me.presentation.viewmodel.DragAndDropViewModel::class) }
+    val uiState by viewModel.uiState.collectAsState()
+    
+    // Local state for drag and drop functionality
     var droppedBlocks by remember { mutableStateOf<List<DroppedBlock>>(emptyList()) }
     var connections by remember { mutableStateOf<List<Connection>>(emptyList()) }
     var dragState by remember { mutableStateOf(DragState()) }
@@ -60,7 +71,7 @@ fun DragAndDropScreen() {
     var dropZonePosition by remember { mutableStateOf(Offset.Zero) }
     var nextOrder by remember { mutableStateOf(0) }
     var zoomState by remember { mutableStateOf(ZoomState()) }
-
+    
     // Function to calculate block center position
     val getBlockCenter = { block: DroppedBlock ->
         Offset(
@@ -68,7 +79,7 @@ fun DragAndDropScreen() {
             block.position.y + 30f  // Half of block height (60dp / 2)
         )
     }
-
+    
     // Function to create connection between blocks
     val createConnection = { fromBlock: DroppedBlock, toBlock: DroppedBlock ->
         val fromCenter = getBlockCenter(fromBlock)
@@ -80,26 +91,26 @@ fun DragAndDropScreen() {
             toPosition = toCenter
         )
     }
-
+    
     // Function to create manual connection between two blocks
     val createManualConnection = { fromBlockId: String, toBlockId: String ->
         val fromBlock = droppedBlocks.find { it.id == fromBlockId }
         val toBlock = droppedBlocks.find { it.id == toBlockId }
-
+        
         if (fromBlock != null && toBlock != null) {
             // Check if connection already exists
-            val connectionExists = connections.any {
+            val connectionExists = connections.any { 
                 (it.fromBlockId == fromBlockId && it.toBlockId == toBlockId) ||
-                        (it.fromBlockId == toBlockId && it.toBlockId == fromBlockId)
+                (it.fromBlockId == toBlockId && it.toBlockId == fromBlockId)
             }
-
+            
             if (!connectionExists) {
                 val newConnection = createConnection(fromBlock, toBlock)
                 connections = connections + newConnection
             }
         }
     }
-
+    
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -109,96 +120,140 @@ fun DragAndDropScreen() {
         ) {
             // Title
             Text(
-                text = "🎨 Interactive Connected Blocks",
+                text = "🎨 Interactive Connected Blocks with Custom Blocks",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF2C3E50),
                 modifier = Modifier.padding(bottom = 16.dp)
             )
-
-            // Building blocks palette
+            
+            // Building blocks palette (now using ViewModel)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "🧱 Building Blocks",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF34495E),
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        items(buildingBlocks) { block ->
-                            DraggableBlock(
-                                block = block,
-                                isDraggedGlobally = dragState.draggedBlock?.id == block.id,
-                                onDragStart = { initialPos ->
-                                    dragState = DragState(
-                                        isDragging = true,
-                                        draggedBlock = block,
-                                        initialPosition = initialPos
-                                    )
-                                },
-                                onDragEnd = { finalOffset ->
-                                    dragState.draggedBlock?.let { dragged ->
-                                        val dropZoneRelativeY = finalOffset.y - dropZonePosition.y
-
-                                        if (dropZoneRelativeY > 0 && dropZoneRelativeY < dropZoneSize.height) {
-                                            val dropZoneRelativeX =
-                                                finalOffset.x - dropZonePosition.x
-
-                                            // Account for zoom and pan when placing blocks
-                                            val adjustedX =
-                                                (dropZoneRelativeX - zoomState.offsetX) / zoomState.scale
-                                            val adjustedY =
-                                                (dropZoneRelativeY - zoomState.offsetY) / zoomState.scale
-
-                                            val clampedX =
-                                                adjustedX.coerceIn(0f, dropZoneSize.width - 80f)
-                                            val clampedY =
-                                                adjustedY.coerceIn(0f, dropZoneSize.height - 60f)
-
-                                            val newBlock = DroppedBlock(
-                                                block = dragged,
-                                                position = Offset(clampedX, clampedY),
-                                                order = nextOrder
-                                            )
-
-                                            droppedBlocks = droppedBlocks + newBlock
-
-                                            if (droppedBlocks.isNotEmpty()) {
-                                                val previousBlock = droppedBlocks
-                                                    .filter { it.id != newBlock.id }
-                                                    .maxByOrNull { it.order }
-                                                previousBlock?.let { prevBlock ->
-                                                    val newConnection =
-                                                        createConnection(prevBlock, newBlock)
-                                                    connections = connections + newConnection
+                        Text(
+                            text = "🧱 Building Blocks (${uiState.buildingBlocks.size})",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF34495E)
+                        )
+                        
+                        // Add custom block button
+                        Button(
+                            onClick = { viewModel.showAddBlockDialog() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF27AE60)),
+                            modifier = Modifier.height(32.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp)
+                        ) {
+                            Text("+ Add", color = Color.White, fontSize = 12.sp)
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp), // Increased spacing
+                        contentPadding = PaddingValues(horizontal = 4.dp) // Add padding for delete buttons
+                    ) {
+                        items(uiState.buildingBlocks) { block ->
+                            Box(
+                                modifier = Modifier.padding(8.dp) // Add padding around each block
+                            ) {
+                                DraggableBlock(
+                                    block = block,
+                                    isDraggedGlobally = dragState.draggedBlock?.id == block.id,
+                                    onDragStart = { initialPos ->
+                                        dragState = DragState(
+                                            isDragging = true,
+                                            draggedBlock = block,
+                                            initialPosition = initialPos
+                                        )
+                                    },
+                                    onDragEnd = { finalOffset ->
+                                        dragState.draggedBlock?.let { dragged ->
+                                            val dropZoneRelativeY = finalOffset.y - dropZonePosition.y
+                                            
+                                            if (dropZoneRelativeY > 0 && dropZoneRelativeY < dropZoneSize.height) {
+                                                val dropZoneRelativeX = finalOffset.x - dropZonePosition.x
+                                                
+                                                // Account for zoom and pan when placing blocks
+                                                val adjustedX = (dropZoneRelativeX - zoomState.offsetX) / zoomState.scale
+                                                val adjustedY = (dropZoneRelativeY - zoomState.offsetY) / zoomState.scale
+                                                
+                                                val clampedX = adjustedX.coerceIn(0f, dropZoneSize.width - 80f)
+                                                val clampedY = adjustedY.coerceIn(0f, dropZoneSize.height - 60f)
+                                                
+                                                val newBlock = DroppedBlock(
+                                                    block = dragged,
+                                                    position = Offset(clampedX, clampedY),
+                                                    order = nextOrder
+                                                )
+                                                
+                                                droppedBlocks = droppedBlocks + newBlock
+                                                
+                                                if (droppedBlocks.isNotEmpty()) {
+                                                    val previousBlock = droppedBlocks
+                                                        .filter { it.id != newBlock.id }
+                                                        .maxByOrNull { it.order }
+                                                    previousBlock?.let { prevBlock ->
+                                                        val newConnection = createConnection(prevBlock, newBlock)
+                                                        connections = connections + newConnection
+                                                    }
                                                 }
+                                                
+                                                nextOrder++
                                             }
-
-                                            nextOrder++
                                         }
+                                        dragState = DragState()
+                                    },
+                                    onDrag = { offset ->
+                                        dragState = dragState.copy(dragOffset = offset)
                                     }
-                                    dragState = DragState()
-                                },
-                                onDrag = { offset ->
-                                    dragState = dragState.copy(dragOffset = offset)
+                                )
+                                
+                                // Delete button for custom blocks with better positioning
+                                if (block.id.startsWith("custom_")) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .offset(x = 4.dp, y = (-4).dp) // Better positioning
+                                            .size(24.dp) // Slightly larger for easier tapping
+                                            .background(
+                                                color = Color(0xFFE74C3C),
+                                                shape = CircleShape
+                                            )
+                                            .border(
+                                                width = 2.dp,
+                                                color = Color.White,
+                                                shape = CircleShape
+                                            )
+                                            .clickable { viewModel.deleteCustomBlock(block.id) },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "×",
+                                            color = Color.White,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                 }
-                            )
+                            }
                         }
                     }
                 }
             }
-
+            
             Spacer(modifier = Modifier.height(16.dp))
-
+            
             // Drop zone with zoom functionality
             Card(
                 modifier = Modifier
@@ -228,7 +283,7 @@ fun DragAndDropScreen() {
                                 val newScale = (zoomState.scale * zoom).coerceIn(0.5f, 3f)
                                 val newOffsetX = zoomState.offsetX + pan.x
                                 val newOffsetY = zoomState.offsetY + pan.y
-
+                                
                                 zoomState = ZoomState(
                                     scale = newScale,
                                     offsetX = newOffsetX,
@@ -261,7 +316,7 @@ fun DragAndDropScreen() {
                                 )
                             }
                         }
-
+                        
                         // Drop zone instructions
                         if (droppedBlocks.isEmpty()) {
                             Column(
@@ -303,7 +358,7 @@ fun DragAndDropScreen() {
                                 )
                             }
                         }
-
+                        
                         // Render dropped blocks
                         droppedBlocks.forEach { droppedBlock ->
                             DroppedBlockItem(
@@ -324,10 +379,7 @@ fun DragAndDropScreen() {
                                         selectionState = SelectionState()
                                     } else {
                                         // Second selection - create connection
-                                        createManualConnection(
-                                            selectionState.selectedBlockId!!,
-                                            droppedBlock.id
-                                        )
+                                        createManualConnection(selectionState.selectedBlockId!!, droppedBlock.id)
                                         selectionState = SelectionState()
                                     }
                                 },
@@ -335,8 +387,8 @@ fun DragAndDropScreen() {
                                     // Double click to remove
                                     val blockId = droppedBlock.id
                                     droppedBlocks = droppedBlocks.filter { it.id != blockId }
-                                    connections = connections.filter {
-                                        it.fromBlockId != blockId && it.toBlockId != blockId
+                                    connections = connections.filter { 
+                                        it.fromBlockId != blockId && it.toBlockId != blockId 
                                     }
                                     // Clear selection if deleted block was selected
                                     if (selectionState.selectedBlockId == blockId) {
@@ -351,23 +403,21 @@ fun DragAndDropScreen() {
                                             block
                                         }
                                     }
-
+                                    
                                     // Update connections with proper center calculation
                                     val updatedBlockCenter = Offset(
                                         newPosition.x + 40f,
                                         newPosition.y + 30f
                                     )
-
+                                    
                                     connections = connections.map { connection ->
                                         when {
                                             connection.fromBlockId == droppedBlock.id -> {
                                                 connection.copy(fromPosition = updatedBlockCenter)
                                             }
-
                                             connection.toBlockId == droppedBlock.id -> {
                                                 connection.copy(toPosition = updatedBlockCenter)
                                             }
-
                                             else -> connection
                                         }
                                     }
@@ -388,7 +438,7 @@ fun DragAndDropScreen() {
                             )
                         }
                     }
-
+                    
                     // Zoom controls
                     Row(
                         modifier = Modifier
@@ -409,7 +459,7 @@ fun DragAndDropScreen() {
                         ) {
                             Text("+", color = Color.White, fontSize = 18.sp)
                         }
-
+                        
                         FloatingActionButton(
                             onClick = {
                                 zoomState = ZoomState(
@@ -423,7 +473,7 @@ fun DragAndDropScreen() {
                         ) {
                             Text("-", color = Color.White, fontSize = 18.sp)
                         }
-
+                        
                         FloatingActionButton(
                             onClick = {
                                 zoomState = ZoomState() // Reset to default
@@ -434,7 +484,7 @@ fun DragAndDropScreen() {
                             Text("⌂", color = Color.White, fontSize = 16.sp)
                         }
                     }
-
+                    
                     // Stats
                     if (droppedBlocks.isNotEmpty()) {
                         Card(
@@ -458,6 +508,11 @@ fun DragAndDropScreen() {
                                     color = Color(0xFF3498DB)
                                 )
                                 Text(
+                                    text = "Available: ${uiState.buildingBlocks.size}",
+                                    fontSize = 10.sp,
+                                    color = Color(0xFF27AE60)
+                                )
+                                Text(
                                     text = "Zoom: ${(zoomState.scale * 100).toInt()}%",
                                     fontSize = 10.sp,
                                     color = Color(0xFF27AE60)
@@ -475,12 +530,12 @@ fun DragAndDropScreen() {
                     }
                 }
             }
-
+            
             // Clear button
             if (droppedBlocks.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(
-                    onClick = {
+                    onClick = { 
                         droppedBlocks = emptyList()
                         connections = emptyList()
                         nextOrder = 0
@@ -493,13 +548,40 @@ fun DragAndDropScreen() {
                 }
             }
         }
-
+        
         // Global drag overlay
         if (dragState.isDragging && dragState.draggedBlock != null) {
             DragOverlay(
                 block = dragState.draggedBlock!!,
                 offset = dragState.initialPosition + dragState.dragOffset
             )
+        }
+        
+        // Add block dialog
+        if (uiState.showAddBlockDialog) {
+            AddBlockDialog(
+                onDismiss = { viewModel.hideAddBlockDialog() },
+                onConfirm = { name, color -> 
+                    viewModel.addCustomBlock(name, color)
+                },
+                isLoading = uiState.isLoading
+            )
+        }
+        
+        // Error handling
+        uiState.errorMessage?.let { error ->
+            Card(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE74C3C).copy(alpha = 0.9f))
+            ) {
+                Text(
+                    text = "Error: $error",
+                    color = Color.White,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
         }
     }
 }

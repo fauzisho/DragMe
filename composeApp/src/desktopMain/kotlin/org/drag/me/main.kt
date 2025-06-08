@@ -6,7 +6,7 @@ import androidx.compose.ui.window.application
 fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
-        title = "DragMe",
+        title = "Drag & Drop Blocks"
     ) {
         App()
     }
