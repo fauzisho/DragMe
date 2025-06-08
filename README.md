@@ -1,26 +1,55 @@
-This is a Kotlin Multiplatform project targeting Android, iOS, Web, Desktop, Server.
+# Drag and Drop App
 
-* `/composeApp` is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - `commonMain` is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    `iosMain` would be the right folder for such calls.
+A simple drag and drop application built with Kotlin Multiplatform, running on Android, iOS, Web, Desktop, and Server.
 
-* `/iosApp` contains iOS applications. Even if you’re sharing your UI with Compose Multiplatform, 
-  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
+## What it does
 
-* `/server` is for the Ktor server application.
+Drag items from one area and drop them into another area. Works the same way on all platforms.
 
-* `/shared` is for the code that will be shared between all targets in the project.
-  The most important subfolder is `commonMain`. If preferred, you can add code to the platform-specific folders here too.
+## Project Structure
 
+- **`/composeApp`** - Shared UI code for all platforms
+  - `commonMain` - Code shared by all platforms
+  - `androidMain` - Android-specific code
+  - `iosMain` - iOS-specific code
+  - `wasmJsMain` - Web-specific code
+  - `desktopMain` - Desktop-specific code
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html),
-[Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform/#compose-multiplatform),
-[Kotlin/Wasm](https://kotl.in/wasm/)…
+- **`/iosApp`** - iOS app entry point
 
-We would appreciate your feedback on Compose/Web and Kotlin/Wasm in the public Slack channel [#compose-web](https://slack-chats.kotlinlang.org/c/compose-web).
-If you face any issues, please report them on [YouTrack](https://youtrack.jetbrains.com/newIssue?project=CMP).
+- **`/server`** - Backend server (Ktor)
 
-You can open the web application by running the `:composeApp:wasmJsBrowserDevelopmentRun` Gradle task.
+- **`/shared`** - Shared business logic
+
+## How to run
+
+**Android:**
+```bash
+./gradlew :composeApp:installDebug
+```
+
+**iOS:**
+Open in Xcode and run the `iosApp` target
+
+**Desktop:**
+```bash
+./gradlew :composeApp:run
+```
+
+**Web:**
+```bash
+./gradlew :composeApp:wasmJsBrowserDevelopmentRun
+```
+
+**Server:**
+```bash
+./gradlew :server:run
+```
+
+## Screenshot
+![screenshot.png](screenshot.png)
+
+## Learn more
+
+- [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)
+- [Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform/#compose-multiplatform)
