@@ -1,0 +1,19 @@
+# Ignore unnecessary files for backend deployment
+composeApp/
+iosApp/
+.git/
+.github/
+.gradle/
+.idea/
+build/
+*.md
+.gitignore
+
+# Keep these for server build
+!gradle/
+!gradlew
+!gradle.properties
+!settings.gradle.kts
+!build.gradle.kts
+!shared/
+!server/

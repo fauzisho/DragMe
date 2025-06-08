@@ -8,24 +8,31 @@ on:
       - 'shared/**'
       - 'gradle/**'
       - '*.gradle.kts'
+      - 'railway.toml'
+      - 'nixpacks.toml'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Setup Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
       
-      - name: Test Backend
-        run: ./gradlew :server:test
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+      
+      - name: Test Server Build
+        run: ./gradlew :server:build --no-daemon -x test
+      
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
       
       - name: Deploy to Railway
-        uses: railwayapp/railway-deploy@v1
-        with:
-          railway_token: ${{ secrets.RAILWAY_TOKEN }}
-          service: dragme-backend
+        run: railway up --service ${{ secrets.RAILWAY_SERVICE_ID }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}

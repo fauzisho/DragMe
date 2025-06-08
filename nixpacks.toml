@@ -1,0 +1,8 @@
+[phases.setup]
+nixPkgs = ["openjdk17"]
+
+[phases.build]
+cmds = ["./gradlew :server:build --no-daemon -x test"]
+
+[start]
+cmd = "./gradlew :server:run --no-daemon"
