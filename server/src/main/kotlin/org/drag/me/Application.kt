@@ -32,25 +32,26 @@ fun Application.module() {
         })
     }
     
-    routing {
-        // Configure CORS for GitHub Pages
-        install(CORS) {
-            allowMethod(HttpMethod.Options)
-            allowMethod(HttpMethod.Get)
-            allowMethod(HttpMethod.Post)
-            allowMethod(HttpMethod.Put)
-            allowMethod(HttpMethod.Delete)
-            allowMethod(HttpMethod.Patch)
-            allowHeader(HttpHeaders.Authorization)
-            allowHeader(HttpHeaders.ContentType)
-            allowCredentials = false
-            
-            // Allow your GitHub Pages domain
-            allowHost("fauzisho.github.io", schemes = listOf("https"))
-            allowHost("localhost:8081") // For local development
-            allowHost("localhost:3000") // For local development alternatives
-        }
+    // Configure CORS for GitHub Pages
+    install(CORS) {
+        allowMethod(HttpMethod.Options)
+        allowMethod(HttpMethod.Get)
+        allowMethod(HttpMethod.Post)
+        allowMethod(HttpMethod.Put)
+        allowMethod(HttpMethod.Delete)
+        allowMethod(HttpMethod.Patch)
+        allowHeader(HttpHeaders.Authorization)
+        allowHeader(HttpHeaders.ContentType)
+        allowCredentials = false
         
+        // Allow your GitHub Pages domain
+        allowHost("fauzisho.github.io", schemes = listOf("https"))
+        allowHost("localhost:8081") // For local development
+        allowHost("localhost:3000") // For local development alternatives
+        anyHost() // Allow all hosts for now - you can restrict this later
+    }
+    
+    routing {
         // Health check endpoint - make it first priority
         get("/health") {
             call.respond(HttpStatusCode.OK, "OK")
