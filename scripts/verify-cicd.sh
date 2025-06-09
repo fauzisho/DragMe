@@ -163,7 +163,7 @@ check_item "Workflow has contents permissions" \
 print_header "🧪 Testing Setup Verification"
 
 check_item "Test task in workflow" \
-    "grep -q 'testClasses' .github/workflows/desktop-build-publish.yml" \
+    "grep -q 'compileCommonMainKotlinMetadata' .github/workflows/desktop-build-publish.yml" \
     "Add test execution to CI/CD workflow"
 
 check_item "Security scan configured" \

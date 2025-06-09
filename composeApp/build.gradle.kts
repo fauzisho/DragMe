@@ -33,7 +33,11 @@ kotlin {
         }
     }
     
-    jvm("desktop")
+    jvm("desktop") {
+        compilations.all {
+            kotlinOptions.jvmTarget = "11"
+        }
+    }
     
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
@@ -184,7 +188,7 @@ publishing {
             pom {
                 name.set("DragMe Desktop")
                 description.set("Interactive Connected Blocks Desktop Application")
-                url.set("https://github.com/${'$'}{project.findProperty("github.repository") ?: "dragme/dragme"}")
+                url.set("https://github.com/dragme/dragme")
                 
                 licenses {
                     license {
@@ -202,9 +206,9 @@ publishing {
                 }
                 
                 scm {
-                    connection.set("scm:git:git://github.com/${'$'}{project.findProperty("github.repository") ?: "dragme/dragme"}.git")
-                    developerConnection.set("scm:git:ssh://github.com:${'$'}{project.findProperty("github.repository") ?: "dragme/dragme"}.git")
-                    url.set("https://github.com/${'$'}{project.findProperty("github.repository") ?: "dragme/dragme"}/tree/main")
+                    connection.set("scm:git:git://github.com/dragme/dragme.git")
+                    developerConnection.set("scm:git:ssh://github.com:dragme/dragme.git")
+                    url.set("https://github.com/dragme/dragme/tree/main")
                 }
             }
         }
@@ -213,7 +217,9 @@ publishing {
     repositories {
         maven {
             name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/${'$'}{project.findProperty("github.repository") ?: "dragme/dragme"}")
+            // TODO: Update this URL to match your repository
+            // Format: https://maven.pkg.github.com/OWNER/REPOSITORY
+            url = uri("https://maven.pkg.github.com/dragme/dragme")
             credentials {
                 username = project.findProperty("githubUsername")?.toString() ?: System.getenv("GITHUB_ACTOR")
                 password = project.findProperty("githubToken")?.toString() ?: System.getenv("GITHUB_TOKEN")

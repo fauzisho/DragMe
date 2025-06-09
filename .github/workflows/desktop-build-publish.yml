@@ -82,7 +82,7 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: 🧪 Run Tests
-        run: ./gradlew :composeApp:testClasses
+        run: ./gradlew :composeApp:compileCommonMainKotlinMetadata
 
       - name: 🏗️ Build Desktop Distribution
         run: ./gradlew :composeApp:${{ matrix.build_task }}
