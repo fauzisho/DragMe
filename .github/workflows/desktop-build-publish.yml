@@ -62,24 +62,11 @@ jobs:
           java-version: '17'
 
       - name: 🐘 Setup Gradle
-        uses: gradle/gradle-build-action@v3
-        with:
-          gradle-home-cache-cleanup: true
+        uses: gradle/actions/setup-gradle@v4
 
       - name: 🔑 Make gradlew executable
         if: runner.os != 'Windows'
         run: chmod +x ./gradlew
-
-      - name: 📋 Cache Gradle dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            ~/.konan
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
 
       - name: 🧪 Run Tests
         run: ./gradlew :composeApp:compileCommonMainKotlinMetadata
@@ -161,7 +148,7 @@ jobs:
           java-version: '17'
 
       - name: 🐘 Setup Gradle
-        uses: gradle/gradle-build-action@v3
+        uses: gradle/actions/setup-gradle@v4
 
       - name: 🔑 Make gradlew executable
         run: chmod +x ./gradlew
