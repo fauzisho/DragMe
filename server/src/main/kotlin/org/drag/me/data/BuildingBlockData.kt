@@ -19,6 +19,7 @@ object BuildingBlockData {
     )
     
     private val customBlocks = mutableListOf<BuildingBlockDto>()
+    private const val MAX_CUSTOM_BLOCKS = 100 // Prevent memory leaks
     
     fun getAllBlocks(): List<BuildingBlockDto> {
         return defaultBlocks + customBlocks
@@ -33,6 +34,10 @@ object BuildingBlockData {
     }
     
     fun addCustomBlock(block: BuildingBlockDto): BuildingBlockDto {
+        // Prevent memory leaks by limiting custom blocks
+        if (customBlocks.size >= MAX_CUSTOM_BLOCKS) {
+            customBlocks.removeFirst() // Remove oldest
+        }
         customBlocks.add(block)
         return block
     }
@@ -47,5 +52,16 @@ object BuildingBlockData {
     
     fun getBlockById(id: String): BuildingBlockDto? {
         return getAllBlocks().find { it.id == id }
+    }
+    
+    // Add cleanup method for memory management
+    fun cleanup() {
+        if (customBlocks.size > MAX_CUSTOM_BLOCKS / 2) {
+            val toRemove = customBlocks.size - (MAX_CUSTOM_BLOCKS / 2)
+            repeat(toRemove) {
+                customBlocks.removeFirstOrNull()
+            }
+            println("Cleaned up $toRemove custom blocks to prevent memory leak")
+        }
     }
 }

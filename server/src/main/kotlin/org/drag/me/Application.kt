@@ -16,10 +16,23 @@ fun main() {
     val port = System.getenv("PORT")?.toInt() ?: SERVER_PORT
     val host = "0.0.0.0" // Important: bind to all interfaces, not localhost
     
-    println("Starting server on $host:$port")
+    // Log memory info for debugging
+    val runtime = Runtime.getRuntime()
+    val maxMemory = runtime.maxMemory() / 1024 / 1024
+    val totalMemory = runtime.totalMemory() / 1024 / 1024
+    val freeMemory = runtime.freeMemory() / 1024 / 1024
     
-    embeddedServer(Netty, port = port, host = host, module = Application::module)
-        .start(wait = true)
+    println("Starting server on $host:$port")
+    println("Memory - Max: ${maxMemory}MB, Total: ${totalMemory}MB, Free: ${freeMemory}MB")
+    
+    embeddedServer(Netty, port = port, host = host, module = Application::module) {
+        // Configure Netty with resource limits
+        responseWriteTimeoutSeconds = 10
+        requestReadTimeoutSeconds = 10
+        callGroupSize = 2 // Limit worker threads
+        workerGroupSize = 4 // Limit worker threads
+        connectionGroupSize = 2 // Limit connection threads
+    }.start(wait = true)
 }
 
 fun Application.module() {

@@ -2,7 +2,7 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "./gradlew :server:run --no-daemon"
+startCommand = "./gradlew :server:buildFatJar && java -Xmx256m -Xms128m -jar server/build/libs/server-all.jar"
 healthcheckPath = "/health"
 healthcheckTimeout = 100
 restartPolicyType = "on_failure"
