@@ -3,6 +3,8 @@ import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
+import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -196,7 +198,7 @@ publishing {
     repositories {
         maven {
             name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/dragme/dragme")
+            url = uri("https://maven.pkg.github.com/fauzisho/DragMe")
             credentials {
                 username = project.findProperty("githubUsername")?.toString() ?: System.getenv("GITHUB_ACTOR")
                 password = project.findProperty("githubToken")?.toString() ?: System.getenv("GITHUB_TOKEN")
