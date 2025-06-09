@@ -29,10 +29,13 @@ RUN ./gradlew :server:build --no-daemon -x test
 # Expose port (Railway will set PORT env var)
 EXPOSE $PORT
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+# Health check with longer timeout
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
   CMD curl -f http://localhost:${PORT:-8080}/health || exit 1
 
-# Run the server using Gradle but with memory limits through environment
+# Set memory limits and run the server
 ENV JAVA_OPTS="-Xmx256m -Xms128m -XX:+UseG1GC -XX:MaxGCPauseMillis=100"
-CMD ["sh", "-c", "./gradlew :server:run --no-daemon"]
+ENV GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx256m"
+
+# Run the server using Gradle but with memory limits
+CMD ["sh", "-c", "export JAVA_OPTS=\"$JAVA_OPTS\" && ./gradlew :server:run --no-daemon"]
