@@ -2,7 +2,11 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "./gradlew :server:buildFatJar && java -Xmx256m -Xms128m -jar server/build/libs/server-all.jar"
+startCommand = "java $JAVA_OPTS -jar server/build/libs/server.jar"
 healthcheckPath = "/health"
 healthcheckTimeout = 100
 restartPolicyType = "on_failure"
+
+[variables]
+JAVA_OPTS = "-Xmx256m -Xms128m -XX:+UseG1GC"
+PORT = "8080"

@@ -23,7 +23,7 @@ COPY server server
 # Make gradlew executable
 RUN chmod +x ./gradlew
 
-# Build only the server
+# Just build the server classes - simplest approach
 RUN ./gradlew :server:build --no-daemon -x test
 
 # Expose port (Railway will set PORT env var)
@@ -31,7 +31,8 @@ EXPOSE $PORT
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:$PORT/health || exit 1
+  CMD curl -f http://localhost:${PORT:-8080}/health || exit 1
 
-# Run the server with explicit port binding
-CMD ["sh", "-c", "./gradlew :server:run --no-daemon -Dserver.port=${PORT:-8080}"]
+# Run the server using Gradle but with memory limits through environment
+ENV JAVA_OPTS="-Xmx256m -Xms128m -XX:+UseG1GC -XX:MaxGCPauseMillis=100"
+CMD ["sh", "-c", "./gradlew :server:run --no-daemon"]
