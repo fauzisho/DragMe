@@ -42,13 +42,15 @@ fun Application.module() {
         allowMethod(HttpMethod.Patch)
         allowHeader(HttpHeaders.Authorization)
         allowHeader(HttpHeaders.ContentType)
+        allowHeader(HttpHeaders.Accept)
         allowCredentials = false
         
-        // Allow your GitHub Pages domain
+        // Allow specific hosts
         allowHost("fauzisho.github.io", schemes = listOf("https"))
-        allowHost("localhost:8081") // For local development
+        allowHost("localhost:8081") // For local development  
+        allowHost("localhost:8080") // For local development alternatives
         allowHost("localhost:3000") // For local development alternatives
-        anyHost() // Allow all hosts for now - you can restrict this later
+        anyHost() // Allow all hosts for testing - you can restrict this later
     }
     
     routing {

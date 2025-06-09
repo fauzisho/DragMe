@@ -1,15 +1,9 @@
 package org.drag.me.api
 
-import org.drag.me.SERVER_PORT
-
 object ApiEndpoints {
-    // Production URL - your actual Railway domain
-    const val PRODUCTION_URL = "https://dragme-production.up.railway.app"
-    const val LOCAL_URL = "http://localhost:$SERVER_PORT"
-    
-    // Simple approach: Use production URL for now
-    // You can manually change this to LOCAL_URL during development
-    val BASE_URL = PRODUCTION_URL
+    // Always use the production Railway URL for both development and production
+    // This ensures consistent API access from both local development and GitHub Pages
+    const val BASE_URL = "https://dragme-production.up.railway.app"
     
     const val BUILDING_BLOCKS = "/api/building-blocks"
     const val CREATE_BUILDING_BLOCK = "/api/building-blocks"

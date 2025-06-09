@@ -9,20 +9,14 @@ import org.drag.me.data.repository.InMemoryBuildingBlockRepository
 import kotlin.reflect.KClass
 
 class ViewModelFactory(
-    private val useApi: Boolean = true,
-    private val coroutineScope: CoroutineScope? = null
+    private val useApi: Boolean = true
 ) {
     
     @Suppress("UNCHECKED_CAST")
     fun <T : ViewModel> create(modelClass: KClass<T>): T {
         if (modelClass == DragAndDropViewModel::class) {
             val repository: BuildingBlockRepository = if (useApi) {
-                val apiRepository = ApiBuildingBlockRepository()
-                // Load initial data from API
-                coroutineScope?.launch {
-                    apiRepository.loadBlocks()
-                }
-                apiRepository
+                ApiBuildingBlockRepository()
             } else {
                 InMemoryBuildingBlockRepository()
             }

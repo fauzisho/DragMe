@@ -5,6 +5,9 @@ import androidx.compose.ui.graphics.toArgb
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.drag.me.data.api.BuildingBlockApiService
 import org.drag.me.model.BuildingBlock
 import org.drag.me.models.BuildingBlockDto
@@ -16,17 +19,27 @@ class ApiBuildingBlockRepository(
     private val apiService: BuildingBlockApiService = BuildingBlockApiService()
 ) : BuildingBlockRepository {
     
-    private val blocksFlow = MutableStateFlow<List<BuildingBlock>>(emptyList())
+    private val blocksFlow = MutableStateFlow<List<BuildingBlock>>(getDefaultBlocks())
+    private val repositoryScope = CoroutineScope(Dispatchers.Default)
     
-    // Load blocks from API on initialization
+    init {
+        // Auto-load blocks from API when repository is created
+        repositoryScope.launch {
+            loadBlocks()
+        }
+    }
+    
+    // Load blocks from API
     suspend fun loadBlocks() {
+        println("🔄 Loading blocks from API: ${org.drag.me.api.ApiEndpoints.BASE_URL}")
         val result = apiService.getAllBlocks()
         result.onSuccess { dtoBlocks ->
+            println("✅ API returned ${dtoBlocks.size} blocks")
             val blocks = dtoBlocks.map { dto -> dto.toBuildingBlock() }
             blocksFlow.value = blocks
         }.onFailure { error ->
-            println("Failed to load blocks from API: ${error.message}")
-            // Fallback to default blocks if API fails
+            println("❌ Failed to load blocks from API: ${error.message}")
+            // Keep default blocks if API fails
             blocksFlow.value = getDefaultBlocks()
         }
     }

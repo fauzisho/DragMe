@@ -16,20 +16,26 @@ class BuildingBlockApiService(
     
     suspend fun getAllBlocks(): Result<List<BuildingBlockDto>> {
         return try {
+            println("🔄 Making API call to: ${ApiEndpoints.BASE_URL}${ApiEndpoints.BUILDING_BLOCKS}")
             val response: ApiResponse<BuildingBlocksResponse> = client.get("${ApiEndpoints.BASE_URL}${ApiEndpoints.BUILDING_BLOCKS}").body()
             
+            println("📦 API Response - Success: ${response.success}")
             if (response.success) {
                 val data = response.data
                 if (data != null) {
+                    println("✅ Got ${data.blocks.size} blocks from API")
                     Result.success(data.blocks)
                 } else {
+                    println("❌ API returned success but no data")
                     Result.failure(Exception("No data received"))
                 }
             } else {
+                println("❌ API returned error: ${response.error}")
                 Result.failure(Exception(response.error ?: "Unknown error"))
             }
         } catch (e: Exception) {
-            println("API Error: ${e.message}")
+            println("💥 API Error: ${e.message}")
+            e.printStackTrace()
             // Return empty list as fallback for development
             Result.success(emptyList())
         }
@@ -37,24 +43,30 @@ class BuildingBlockApiService(
     
     suspend fun createBlock(name: String, colorHex: String): Result<BuildingBlockDto> {
         return try {
+            println("🔄 Creating block: $name with color $colorHex")
             val request = CreateBuildingBlockRequest(name, colorHex)
             val response: ApiResponse<BuildingBlockDto> = client.post("${ApiEndpoints.BASE_URL}${ApiEndpoints.CREATE_BUILDING_BLOCK}") {
                 contentType(ContentType.Application.Json)
                 setBody(request)
             }.body()
             
+            println("📦 Create API Response - Success: ${response.success}")
             if (response.success) {
                 val data = response.data
                 if (data != null) {
+                    println("✅ Block created successfully: ${data.id}")
                     Result.success(data)
                 } else {
+                    println("❌ API returned success but no data")
                     Result.failure(Exception("No data received"))
                 }
             } else {
+                println("❌ API returned error: ${response.error}")
                 Result.failure(Exception(response.error ?: "Failed to create block"))
             }
         } catch (e: Exception) {
-            println("API Error: ${e.message}")
+            println("💥 Create API Error: ${e.message}")
+            e.printStackTrace()
             Result.failure(e)
         }
     }

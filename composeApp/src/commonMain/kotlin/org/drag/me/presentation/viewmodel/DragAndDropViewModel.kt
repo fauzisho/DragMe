@@ -33,6 +33,7 @@ class DragAndDropViewModel(
     val uiState: StateFlow<DragAndDropUiState> = _uiState.asStateFlow()
     
     init {
+        // Load building blocks immediately when repository is created
         loadBuildingBlocks()
     }
     
