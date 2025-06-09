@@ -25,14 +25,8 @@ fun main() {
     println("Starting server on $host:$port")
     println("Memory - Max: ${maxMemory}MB, Total: ${totalMemory}MB, Free: ${freeMemory}MB")
     
-    embeddedServer(Netty, port = port, host = host, module = Application::module) {
-        // Configure Netty with resource limits
-        responseWriteTimeoutSeconds = 10
-        requestReadTimeoutSeconds = 10
-        callGroupSize = 2 // Limit worker threads
-        workerGroupSize = 4 // Limit worker threads
-        connectionGroupSize = 2 // Limit connection threads
-    }.start(wait = true)
+    embeddedServer(Netty, port = port, host = host, module = Application::module)
+        .start(wait = true)
 }
 
 fun Application.module() {
