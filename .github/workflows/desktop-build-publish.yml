@@ -1,0 +1,294 @@
+name: 🖥️ Build & Publish Desktop App
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'snapshot'
+        type: choice
+        options:
+          - snapshot
+          - release
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+env:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  
+jobs:
+  build-desktop:
+    name: 🏗️ Build Desktop Apps
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux
+            artifact_name: "DragMe-Linux"
+            build_task: "packageDeb"
+            package_extension: ".deb"
+          - os: windows-latest
+            target: windows
+            artifact_name: "DragMe-Windows"
+            build_task: "packageMsi"
+            package_extension: ".msi"
+          - os: macos-latest
+            target: macos
+            artifact_name: "DragMe-macOS"
+            build_task: "packageDmg"
+            package_extension: ".dmg"
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: ☕ Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🐘 Setup Gradle
+        uses: gradle/gradle-build-action@v3
+        with:
+          gradle-home-cache-cleanup: true
+
+      - name: 🔑 Make gradlew executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./gradlew
+
+      - name: 📋 Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.konan
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: 🧪 Run Tests
+        run: ./gradlew :composeApp:testClasses
+
+      - name: 🏗️ Build Desktop Distribution
+        run: ./gradlew :composeApp:${{ matrix.build_task }}
+
+      - name: 📦 Find Package File
+        id: find-package
+        shell: bash
+        run: |
+          if [ "${{ matrix.target }}" = "linux" ]; then
+            PACKAGE_PATH=$(find composeApp/build/compose/binaries/main/deb -name "*${{ matrix.package_extension }}" | head -1)
+          elif [ "${{ matrix.target }}" = "windows" ]; then
+            PACKAGE_PATH=$(find composeApp/build/compose/binaries/main/msi -name "*${{ matrix.package_extension }}" | head -1)
+          elif [ "${{ matrix.target }}" = "macos" ]; then
+            PACKAGE_PATH=$(find composeApp/build/compose/binaries/main/dmg -name "*${{ matrix.package_extension }}" | head -1)
+          fi
+          
+          if [ -z "$PACKAGE_PATH" ]; then
+            echo "❌ Package file not found for ${{ matrix.target }}"
+            exit 1
+          fi
+          
+          echo "package_path=$PACKAGE_PATH" >> $GITHUB_OUTPUT
+          echo "package_name=$(basename "$PACKAGE_PATH")" >> $GITHUB_OUTPUT
+          echo "✅ Found package: $PACKAGE_PATH"
+
+      - name: 📝 Get Package Info
+        id: package-info
+        shell: bash
+        run: |
+          PACKAGE_SIZE=$(du -h "${{ steps.find-package.outputs.package_path }}" | cut -f1)
+          echo "package_size=$PACKAGE_SIZE" >> $GITHUB_OUTPUT
+          
+          # Extract version from package name or use git info
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION="$(git describe --tags --always --dirty)"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: 🏷️ Upload Desktop Package as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}-${{ steps.package-info.outputs.version }}
+          path: ${{ steps.find-package.outputs.package_path }}
+          retention-days: 90
+
+      - name: 📊 Build Summary
+        shell: bash
+        run: |
+          echo "## 🖥️ ${{ matrix.artifact_name }} Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target** | ${{ matrix.target }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Package** | ${{ steps.find-package.outputs.package_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Size** | ${{ steps.package-info.outputs.package_size }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Version** | ${{ steps.package-info.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Status** | ✅ Success |" >> $GITHUB_STEP_SUMMARY
+
+  publish-packages:
+    name: 📦 Publish to GitHub Packages
+    needs: build-desktop
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/'))
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: ☕ Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🐘 Setup Gradle
+        uses: gradle/gradle-build-action@v3
+
+      - name: 🔑 Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: 📋 Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: 📝 Set Version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+            echo "is_release=true" >> $GITHUB_OUTPUT
+          else
+            VERSION="$(git describe --tags --always --dirty)-SNAPSHOT"
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: 📦 Create Distribution Structure
+        run: |
+          mkdir -p dist/packages
+          find ./artifacts -type f \( -name "*.deb" -o -name "*.msi" -o -name "*.dmg" \) -exec cp {} dist/packages/ \;
+          
+          # Create metadata file
+          cat > dist/packages/manifest.json << EOF
+          {
+            "name": "DragMe Desktop App",
+            "version": "${{ steps.version.outputs.version }}",
+            "description": "Interactive Connected Blocks Desktop Application",
+            "build_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit": "${{ github.sha }}",
+            "packages": [
+          $(find dist/packages -type f \( -name "*.deb" -o -name "*.msi" -o -name "*.dmg" \) | while read file; do
+            filename=$(basename "$file")
+            size=$(du -h "$file" | cut -f1)
+            echo "      {\"name\": \"$filename\", \"size\": \"$size\"},"
+          done | sed '$ s/,$//')
+            ]
+          }
+          EOF
+
+      - name: 📦 Build and Publish JAR to GitHub Packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./gradlew :composeApp:publish \
+            -Pversion=${{ steps.version.outputs.version }} \
+            -PgithubToken=${{ secrets.GITHUB_TOKEN }} \
+            -PgithubUsername=${{ github.actor }}
+
+      - name: 🚀 Create GitHub Release (for tags)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "dist/packages/*"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+          generateReleaseNotes: true
+          body: |
+            ## 🖥️ DragMe Desktop App Release ${{ steps.version.outputs.version }}
+            
+            ### 📦 Available Packages
+            - **Linux**: `.deb` package for Ubuntu/Debian
+            - **Windows**: `.msi` installer for Windows 10/11
+            - **macOS**: `.dmg` disk image for macOS 11+
+            
+            ### 🚀 What's New
+            Auto-generated from commits since last release.
+            
+            ### 📋 Installation Instructions
+            
+            **Linux (Ubuntu/Debian):**
+            ```bash
+            sudo dpkg -i dragme-*.deb
+            sudo apt-get install -f  # Fix dependencies if needed
+            ```
+            
+            **Windows:**
+            1. Download the `.msi` file
+            2. Double-click to run the installer
+            3. Follow the installation wizard
+            
+            **macOS:**
+            1. Download the `.dmg` file
+            2. Open the disk image
+            3. Drag the app to Applications folder
+
+      - name: 🎯 Publish Summary
+        run: |
+          echo "## 📦 Publishing Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Version** | ${{ steps.version.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Release** | ${{ steps.version.outputs.is_release }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Packages** | $(find dist/packages -type f \( -name "*.deb" -o -name "*.msi" -o -name "*.dmg" \) | wc -l) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Repository** | [${{ github.repository }}](https://github.com/${{ github.repository }}/packages) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Built Packages:" >> $GITHUB_STEP_SUMMARY
+          find dist/packages -type f \( -name "*.deb" -o -name "*.msi" -o -name "*.dmg" \) | while read file; do
+            filename=$(basename "$file")
+            size=$(du -h "$file" | cut -f1)
+            echo "- **$filename** ($size)" >> $GITHUB_STEP_SUMMARY
+          done
+
+  security-scan:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    needs: build-desktop
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔍 Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: 📋 Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
