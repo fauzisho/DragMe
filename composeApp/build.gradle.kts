@@ -177,48 +177,25 @@ compose.desktop {
     }
 }
 
+// Set version for publishing
+val buildVersion = if (project.hasProperty("version") && project.property("version") != "unspecified") {
+    project.property("version").toString()
+} else {
+    // Generate unique version for each build with timestamp to avoid conflicts
+    val baseVersion = "1.0.0"
+    val buildNumber = System.getenv("GITHUB_RUN_NUMBER") ?: "local"
+    val commitHash = System.getenv("GITHUB_SHA")?.take(7) ?: "unknown"
+    val timestamp = System.currentTimeMillis()
+    "$baseVersion-$buildNumber-$commitHash-$timestamp-SNAPSHOT"
+}
+
+version = buildVersion
+
 // Publishing configuration for GitHub Packages
 publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            groupId = "org.drag.me"
-            artifactId = "dragme-desktop"
-            version = project.findProperty("version")?.toString() ?: "1.0.0-SNAPSHOT"
-            
-            pom {
-                name.set("DragMe Desktop")
-                description.set("Interactive Connected Blocks Desktop Application")
-                url.set("https://github.com/dragme/dragme")
-                
-                licenses {
-                    license {
-                        name.set("MIT License")
-                        url.set("https://opensource.org/licenses/MIT")
-                    }
-                }
-                
-                developers {
-                    developer {
-                        id.set("dragme-team")
-                        name.set("DragMe Team")
-                        email.set("team@dragme.org")
-                    }
-                }
-                
-                scm {
-                    connection.set("scm:git:git://github.com/dragme/dragme.git")
-                    developerConnection.set("scm:git:ssh://github.com:dragme/dragme.git")
-                    url.set("https://github.com/dragme/dragme/tree/main")
-                }
-            }
-        }
-    }
-    
     repositories {
         maven {
             name = "GitHubPackages"
-            // TODO: Update this URL to match your repository
-            // Format: https://maven.pkg.github.com/OWNER/REPOSITORY
             url = uri("https://maven.pkg.github.com/dragme/dragme")
             credentials {
                 username = project.findProperty("githubUsername")?.toString() ?: System.getenv("GITHUB_ACTOR")
