@@ -25,21 +25,43 @@ class ApiBuildingBlockRepository(
     init {
         // Auto-load blocks from API when repository is created
         repositoryScope.launch {
+            // Initialize default blocks first (call this once)
+            initializeDefaultBlocks()
+            // Then load all blocks
             loadBlocks()
         }
     }
     
-    // Load blocks from API
+    // Initialize default blocks in Supabase (call this once)
+    private suspend fun initializeDefaultBlocks() {
+        try {
+            // Use the Supabase client directly to initialize defaults
+            val supabaseClient = org.drag.me.api.BuildingBlockApiClient()
+            val response = supabaseClient.initializeDefaultBlocks()
+            if (response.success) {
+                println("✅ Default blocks initialized in Supabase")
+            } else {
+                println("ℹ️ Default blocks may already exist: ${response.error}")
+            }
+        } catch (e: Exception) {
+            println("⚠️ Could not initialize default blocks: ${e.message}")
+        }
+    }
+    
+    // Load blocks from Supabase
     suspend fun loadBlocks() {
-        println("🔄 Loading blocks from API: ${org.drag.me.api.ApiEndpoints.BASE_URL}")
+        println("🔄 Loading blocks from Supabase")
         val result = apiService.getAllBlocks()
         result.onSuccess { dtoBlocks ->
-            println("✅ API returned ${dtoBlocks.size} blocks")
+            println("✅ Supabase returned ${dtoBlocks.size} blocks")
+            dtoBlocks.forEach { dto ->
+                println("📦 Block: ${dto.name} (ID: ${dto.id})")
+            }
             val blocks = dtoBlocks.map { dto -> dto.toBuildingBlock() }
             blocksFlow.value = blocks
         }.onFailure { error ->
-            println("❌ Failed to load blocks from API: ${error.message}")
-            // Keep default blocks if API fails
+            println("❌ Failed to load blocks from Supabase: ${error.message}")
+            // Keep default blocks if Supabase fails
             blocksFlow.value = getDefaultBlocks()
         }
     }

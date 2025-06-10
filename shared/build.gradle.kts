@@ -43,7 +43,31 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(libs.kotlinx.serialization.json)
+            implementation(libs.ktor.clientCore)
+            implementation(libs.ktor.clientContentNegotiation)
+            implementation(libs.ktor.serializationKotlinxJson)
+            implementation(libs.supabase.postgrest.kt)
+            implementation(libs.supabase.auth.kt)
+            implementation(libs.supabase.realtime.kt)
+            implementation(libs.uuid)
         }
+        
+        androidMain.dependencies {
+            implementation(libs.ktor.clientAndroid)
+        }
+        
+        iosMain.dependencies {
+            implementation(libs.ktor.clientDarwin)
+        }
+        
+        jvmMain.dependencies {
+            implementation(libs.ktor.clientOkhttp)
+        }
+        
+        wasmJsMain.dependencies {
+            implementation(libs.ktor.clientJs)
+        }
+        
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }

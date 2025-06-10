@@ -49,6 +49,21 @@ class DragAndDropViewModel(
         }
     }
     
+    fun getCustomBlocks(): List<BuildingBlock> {
+        return _uiState.value.buildingBlocks.filter { block ->
+            // Custom blocks are those that are not in the default set
+            !isDefaultBlock(block)
+        }
+    }
+    
+    private fun isDefaultBlock(block: BuildingBlock): Boolean {
+        val defaultBlockNames = setOf(
+            "Red Block", "Blue Block", "Green Block", "Yellow Block",
+            "Purple Block", "Orange Block", "Cyan Block", "Pink Block"
+        )
+        return block.name in defaultBlockNames
+    }
+    
     fun addCustomBlock(name: String, color: Color) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
