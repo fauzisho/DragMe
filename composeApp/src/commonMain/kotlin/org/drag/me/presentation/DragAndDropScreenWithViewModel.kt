@@ -131,8 +131,15 @@ fun DragAndDropScreenWithViewModel(
             Spacer(modifier = Modifier.height(8.dp))
             
             // Custom blocks section
-            val customBlocks = uiState.buildingBlocks.filter { block: BuildingBlock ->
-                block.id.startsWith("custom_")
+            val customBlocks = remember(uiState.buildingBlocks) {
+                uiState.buildingBlocks.filter { block ->
+                    // Custom blocks are those that are not in the default set
+                    val defaultBlockNames = setOf(
+                        "Red Block", "Blue Block", "Green Block", "Yellow Block",
+                        "Purple Block", "Orange Block", "Cyan Block", "Pink Block"
+                    )
+                    block.name !in defaultBlockNames
+                }
             }
             
             CustomBlocksManager(

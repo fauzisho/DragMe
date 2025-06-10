@@ -1,40 +1,38 @@
 package org.drag.me.data.api
 
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.request.*
-import io.ktor.http.*
-import org.drag.me.api.ApiEndpoints
-import org.drag.me.models.ApiResponse
+import org.drag.me.api.BuildingBlockApiClient
 import org.drag.me.models.BuildingBlockDto
-import org.drag.me.models.BuildingBlocksResponse
 import org.drag.me.models.CreateBuildingBlockRequest
 
-class BuildingBlockApiService(
-    private val client: HttpClient = createHttpClient()
-) {
+/**
+ * Updated API service that uses Supabase instead of HTTP
+ * This maintains the same interface but uses Supabase under the hood
+ */
+class BuildingBlockApiService {
+    
+    private val supabaseApiClient = BuildingBlockApiClient()
     
     suspend fun getAllBlocks(): Result<List<BuildingBlockDto>> {
         return try {
-            println("🔄 Making API call to: ${ApiEndpoints.BASE_URL}${ApiEndpoints.BUILDING_BLOCKS}")
-            val response: ApiResponse<BuildingBlocksResponse> = client.get("${ApiEndpoints.BASE_URL}${ApiEndpoints.BUILDING_BLOCKS}").body()
+            println("🔄 Fetching blocks from Supabase...")
+            val response = supabaseApiClient.getAllBlocks()
             
-            println("📦 API Response - Success: ${response.success}")
+            println("📦 Supabase Response - Success: ${response.success}")
             if (response.success) {
                 val data = response.data
                 if (data != null) {
-                    println("✅ Got ${data.blocks.size} blocks from API")
+                    println("✅ Got ${data.blocks.size} blocks from Supabase")
                     Result.success(data.blocks)
                 } else {
-                    println("❌ API returned success but no data")
+                    println("❌ Supabase returned success but no data")
                     Result.failure(Exception("No data received"))
                 }
             } else {
-                println("❌ API returned error: ${response.error}")
+                println("❌ Supabase returned error: ${response.error}")
                 Result.failure(Exception(response.error ?: "Unknown error"))
             }
         } catch (e: Exception) {
-            println("💥 API Error: ${e.message}")
+            println("💥 Supabase Error: ${e.message}")
             e.printStackTrace()
             // Return empty list as fallback for development
             Result.success(emptyList())
@@ -45,27 +43,24 @@ class BuildingBlockApiService(
         return try {
             println("🔄 Creating block: $name with color $colorHex")
             val request = CreateBuildingBlockRequest(name, colorHex)
-            val response: ApiResponse<BuildingBlockDto> = client.post("${ApiEndpoints.BASE_URL}${ApiEndpoints.CREATE_BUILDING_BLOCK}") {
-                contentType(ContentType.Application.Json)
-                setBody(request)
-            }.body()
+            val response = supabaseApiClient.createBlock(request)
             
-            println("📦 Create API Response - Success: ${response.success}")
+            println("📦 Create Supabase Response - Success: ${response.success}")
             if (response.success) {
                 val data = response.data
                 if (data != null) {
                     println("✅ Block created successfully: ${data.id}")
                     Result.success(data)
                 } else {
-                    println("❌ API returned success but no data")
+                    println("❌ Supabase returned success but no data")
                     Result.failure(Exception("No data received"))
                 }
             } else {
-                println("❌ API returned error: ${response.error}")
+                println("❌ Supabase returned error: ${response.error}")
                 Result.failure(Exception(response.error ?: "Failed to create block"))
             }
         } catch (e: Exception) {
-            println("💥 Create API Error: ${e.message}")
+            println("💥 Create Supabase Error: ${e.message}")
             e.printStackTrace()
             Result.failure(e)
         }
@@ -73,15 +68,19 @@ class BuildingBlockApiService(
     
     suspend fun deleteBlock(id: String): Result<String> {
         return try {
-            val response: ApiResponse<String> = client.delete("${ApiEndpoints.BASE_URL}${ApiEndpoints.DELETE_BUILDING_BLOCK}".replace("{id}", id)).body()
+            println("🔄 Deleting block: $id")
+            val response = supabaseApiClient.deleteBlock(id)
             
             if (response.success) {
+                println("✅ Block deleted successfully")
                 Result.success(response.data ?: "Block deleted successfully")
             } else {
+                println("❌ Failed to delete block: ${response.error}")
                 Result.failure(Exception(response.error ?: "Failed to delete block"))
             }
         } catch (e: Exception) {
-            println("API Error: ${e.message}")
+            println("💥 Delete Supabase Error: ${e.message}")
+            e.printStackTrace()
             Result.failure(e)
         }
     }

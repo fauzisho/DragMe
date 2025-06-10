@@ -1,20 +1,13 @@
 package org.drag.me.data.api
 
-import io.ktor.client.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.serialization.kotlinx.json.*
-import kotlinx.serialization.json.Json
+// This file is no longer needed since we're using Supabase
+// Keeping it for backward compatibility during migration
+// You can delete this file and all platform-specific HttpClientProvider files
 
-expect fun createHttpClient(): HttpClient
-
-fun createHttpClientBase(): HttpClient {
-    return HttpClient {
-        install(ContentNegotiation) {
-            json(Json {
-                ignoreUnknownKeys = true
-                isLenient = true
-                encodeDefaults = false
-            })
-        }
-    }
+// Placeholder - no longer used
+fun createHttpClientBase(): Unit {
+    // No longer needed with Supabase
 }
+
+// Placeholder - no longer used  
+expect fun createHttpClient(): Unit

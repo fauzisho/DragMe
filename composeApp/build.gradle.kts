@@ -67,7 +67,7 @@ kotlin {
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
-            implementation(libs.ktor.clientAndroid)
+            // Removed Ktor Android client as we're using Supabase
         }
         
         commonMain.dependencies {
@@ -80,9 +80,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.kotlinx.serialization.json)
-            implementation(libs.ktor.clientCore)
-            implementation(libs.ktor.clientContentNegotiation)
-            implementation(libs.ktor.serializationKotlinxJson)
+            // Removed Ktor client dependencies as we're using Supabase directly
             implementation(projects.shared)
         }
         
@@ -93,12 +91,12 @@ kotlin {
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
-            implementation(libs.ktor.clientOkhttp)
+            // Removed Ktor OkHttp client as we're using Supabase
         }
         
         val wasmJsMain by getting {
             dependencies {
-                implementation(libs.ktor.clientJs)
+                // Removed Ktor JS client as we're using Supabase
             }
         }
     }
